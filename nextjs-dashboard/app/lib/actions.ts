@@ -1,10 +1,12 @@
 'use server';
-import { signIn } from '@/auth';
-import { AuthError } from 'next-auth';
+
 import { z } from 'zod';
 import postgres from 'postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+
+import { signIn } from '@/auth';
+import { AuthError } from 'next-auth';
 
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
 
@@ -58,72 +60,21 @@ export async function createInvoice(prevState: State, formData: FormData) {
         VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
     `;
     } catch {
-    return {
-        message: 'Database Error: Failed to Create Invoice.',
-    };
+    return { message: 'Database Error: Failed to Create Invoice.' };
     }
 
     revalidatePath('/dashboard/invoices');
     redirect('/dashboard/invoices');
 }
 
-/**
- * ✅ 既存のeditフォームが壊れないように残す版（今まで通り）
- * <form action={updateInvoice.bind(null, id)}> で使える
- */
+/** 既存の edit フォーム（bindで使う想定） */
 export async function updateInvoice(id: string, formData: FormData) {
-    try {
     const { customerId, amount, status } = UpdateInvoice.parse({
-        customerId: formData.get('customerId'),
-        amount: formData.get('amount'),
-        status: formData.get('status'),
-    });
-
-    const amountInCents = Math.round(amount * 100);
-
-    await sql`
-        UPDATE invoices
-        SET customer_id = ${customerId},
-            amount = ${amountInCents},
-            status = ${status}
-        `;
-    } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to Update Invoice.');
-    }
-
-    revalidatePath('/dashboard/invoices');
-    redirect('/dashboard/invoices');
-}
-
-/**
- * ✅ Chapter13「挑戦」用（useActionState対応）
- * edit-form.tsx を useActionState にしたら、こっちに切り替える
- *
- * 使い方イメージ：
- * const update = updateInvoiceWithState.bind(null, invoice.id);
- * const [state, formAction] = useActionState(update, initialState);
- * <form action={formAction}>
- */
-export async function updateInvoiceWithState(
-    id: string,
-    prevState: State,
-    formData: FormData,
-) {
-    const validatedFields = UpdateInvoice.safeParse({
     customerId: formData.get('customerId'),
     amount: formData.get('amount'),
     status: formData.get('status'),
     });
 
-    if (!validatedFields.success) {
-    return {
-        errors: validatedFields.error.flatten().fieldErrors,
-        message: 'Missing Fields. Failed to Update Invoice.',
-    };
-    }
-
-    const { customerId, amount, status } = validatedFields.data;
   const amountInCents = Math.round(amount * 100);
 
     try {
@@ -134,10 +85,9 @@ export async function updateInvoiceWithState(
             status = ${status}
         WHERE id = ${id}
     `;
-    } catch {
-    return {
-        message: 'Database Error: Failed to Update Invoice.',
-    };
+    } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to Update Invoice.');
     }
 
     revalidatePath('/dashboard/invoices');
@@ -154,6 +104,8 @@ export async function deleteInvoice(id: string) {
 
     revalidatePath('/dashboard/invoices');
 }
+
+/** ✅ Chapter14: login-form.tsx から呼ぶ */
 export async function authenticate(
     prevState: string | undefined,
     formData: FormData,

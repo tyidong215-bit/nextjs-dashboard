@@ -4,32 +4,21 @@ export const authConfig = {
     pages: {
     signIn: '/login',
     },
-
-callbacks: {
+    callbacks: {
     authorized({ auth, request: { nextUrl } }) {
-    const isLoggedIn = !!auth?.user;
+        const isLoggedIn = !!auth?.user;
+        const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
 
-    const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
-    const isOnLogin = nextUrl.pathname.startsWith('/login');
-
-    // 1) ダッシュボードは未ログインなら弾く
-    if (isOnDashboard) {
-        return isLoggedIn;
-    }
-
-    // 2) /login は常に表示OK（ログアウト直後のループ回避）
-    if (isOnLogin) {
-        return true;
-    }
-
-    // 3) それ以外は、ログイン済みならダッシュボードへ
-    if (isLoggedIn) {
+        if (isOnDashboard) {
+        if (isLoggedIn) return true;
+        return false; // 未ログインは /login へ
+        } else if (isLoggedIn) {
+        // ログイン済みで /login 等に来たら /dashboard へ
         return Response.redirect(new URL('/dashboard', nextUrl));
-    }
+        }
 
-    return true;
+        return true;
     },
-},
-
+    },
     providers: [],
 } satisfies NextAuthConfig;
